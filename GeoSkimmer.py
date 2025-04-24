@@ -11,8 +11,8 @@ parser = ArgumentParser(usage)
 parser.add_argument("-i","--infile",default="input.i3",  help="read from infile (.i3{.gz} format)")
 parser.add_argument("-o","--outfile",default="output.i3",help="Write output to outfile (.i3{.gz} format)")
 parser.add_argument("-s","--selectionfile",default="strings.csv",help="csv file with list of strings to keep in selection")
-parser.add_argument("-g","--gcdfile", default="gcd.i3",help="read in gcdfile (.i3{.gz} format)")
-parser.add_argument("-t","--outgcd", default="outgcd.i3",help="filtered gcdfile (.i3{.gz} format)")
+parser.add_argument("-g","--gcdfile", default=None,help="read in gcdfile (.i3{.gz} format)")
+parser.add_argument("-t","--outgcd", default=None,help="filtered gcdfile (.i3{.gz} format)")
 
 
 options = parser.parse_args()
@@ -31,13 +31,15 @@ icetray.logging.log_info(f"selected strings: {allowed_strings}")
 
 tray = icetray.I3Tray()
 
-infiles=[ingcd,infile]
+infiles=[infile]
+if ingcd: infiles.append(ingcd)
+
 tray.Add("I3Reader", FilenameList=infiles)
 
 tray.Add(FilterFrame, AllowedStrings=allowed_strings)
 
 tray.Add("I3Writer", Filename=outfile, Streams=[icetray.I3Frame.DAQ])
-tray.Add("I3Writer", Filename=outgcd, Streams=[icetray.I3Frame.Geometry, icetray.I3Frame.Calibration, icetray.I3Frame.DetectorStatus])
+if outgcd: tray.Add("I3Writer", Filename=outgcd, Streams=[icetray.I3Frame.Geometry, icetray.I3Frame.Calibration, icetray.I3Frame.DetectorStatus])
 
 
 tray.Execute()
