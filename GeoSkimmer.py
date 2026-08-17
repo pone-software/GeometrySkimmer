@@ -3,6 +3,7 @@ from icecube.icetray import I3LogLevel
 from FilterFrame import FilterFrame
 from argparse import ArgumentParser
 import csv
+import sys
 
 icetray.I3Logger.global_logger.set_level(I3LogLevel.LOG_INFO)
 
@@ -10,7 +11,7 @@ usage = "usage: %prog [options]"
 parser = ArgumentParser(usage)
 parser.add_argument("-i","--infile",default=None,  help="read from infile (.i3{.gz} format)")
 parser.add_argument("-o","--outfile",default=None,help="Write output to outfile (.i3{.gz} format)")
-parser.add_argument("-s","--selectionfile",default="strings.csv",help="csv file with list of strings to keep in selection")
+parser.add_argument("-s","--selectionfile",default=None,help="csv file with list of strings to keep in selection")
 parser.add_argument("-g","--gcdfile", default=None,help="read in gcdfile (.i3{.gz} format)")
 parser.add_argument("-t","--outgcd", default=None,help="filtered gcdfile (.i3{.gz} format)")
 
@@ -22,12 +23,17 @@ infile = options.infile
 ingcd = options.gcdfile
 
 allowed_strings = []
+allowed_oms = []
 with open(options.selectionfile, 'r') as file:
 	reader = csv.reader(file)
-	for row in reader:
-		allowed_strings=list(map(int,row))
+	rows = list(reader)
+	if rows:
+		allowed_strings = list(map(int, rows[0]))
+	if len(rows) > 1:
+		allowed_oms = list(map(int, rows[1]))
 
 icetray.logging.log_info(f"selected strings: {allowed_strings}")
+icetray.logging.log_info(f"selected oms: {allowed_oms}")
 
 tray = icetray.I3Tray()
 
@@ -41,7 +47,7 @@ if not infiles:
 
 tray.Add("I3Reader", FilenameList=infiles)
 
-tray.Add(FilterFrame, AllowedStrings=allowed_strings)
+tray.Add(FilterFrame, AllowedStrings=allowed_strings, AllowedOMs=allowed_oms)
 
 if outfile: tray.Add("I3Writer", Filename=outfile, Streams=[icetray.I3Frame.DAQ])
 if outgcd: tray.Add("I3Writer", Filename=outgcd, Streams=[icetray.I3Frame.Geometry, icetray.I3Frame.Calibration, icetray.I3Frame.DetectorStatus])
