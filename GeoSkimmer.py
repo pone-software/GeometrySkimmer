@@ -9,7 +9,7 @@ icetray.I3Logger.global_logger.set_level(I3LogLevel.LOG_INFO)
 
 usage = "usage: %prog [options]"
 parser = ArgumentParser(usage)
-parser.add_argument("-i","--infile",default=None,  help="read from infile (.i3{.gz} format)")
+parser.add_argument("-i","--infile",nargs="+", default=None, help="read from one or more input files (.i3{.gz,.zst} format)")
 parser.add_argument("-o","--outfile",default=None,help="Write output to outfile (.i3{.gz} format)")
 parser.add_argument("-s","--selectionfile",default=None,help="csv file with list of strings to keep in selection")
 parser.add_argument("-g","--gcdfile", default=None,help="read in gcdfile (.i3{.gz} format)")
@@ -38,7 +38,7 @@ icetray.logging.log_info(f"selected oms: {allowed_oms}")
 tray = icetray.I3Tray()
 
 infiles = []
-if infile: infiles.append(infile)
+if infile: infiles.extend(infile)
 if ingcd: infiles.append(ingcd)
 
 if not infiles:
