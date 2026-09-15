@@ -1,20 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-MCDIR=${1:-}
-LONGTERMSTORAGE=${2:-/project/6008051/pone_simulation/geometry_subselections/LONGTERMSTORAGE}
+MCDIR=${1:-/project/rpp-nahee/pone_simulation/MC000008-nu_mu-2_6-LeptonInjector_PROPOSAL_clsim-v17.1}
+LONGTERMSTORAGE=${2:-/project/6008051/pone_simulation/geometry_subselections/2026_1400StringGeo/70Strings_7Clusters_10spc/000008}
 SELECTION_FILE=${3:-70string_default.csv}
 
 if [[ -z "$MCDIR" ]]; then
     echo "Usage: $0 <MCDIR> [longtermstorage] [selection_file]"
     exit 2
 fi
+echo "Running on $MCDIR"
 
 GEN_DIR="$MCDIR/Generator"
 if [[ ! -d "$GEN_DIR" ]]; then
     echo "Generator directory not found: $GEN_DIR"
     exit 1
 fi
+echo "Saving to $LONGTERMSTORAGE"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 LOG_DIR="$SCRIPT_DIR/logs"
@@ -33,7 +35,7 @@ while IFS= read -r -d '' dir; do
     sbatch \
         --job-name="$job_name" \
         --output="$LOG_DIR/${job_name}_%j.log" \
-        "$SCRIPT_DIR/sbatchController.sh" "$dir" "$LONGTERMSTORAGE" "$SELECTION_FILE"
+        "$SCRIPT_DIR/sbatchController.sh" "$dir" "$LONGTERMSTORAGE" "$SELECTION_FILE" "$SCRIPT_DIR"
     submitted=$((submitted + 1))
 done < <(find "$GEN_DIR" -mindepth 1 -type d -print0)
 
