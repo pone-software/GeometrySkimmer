@@ -109,7 +109,7 @@ tray.AddModule(
     PulseSeriesOut="EventPulseSeries",
 )
 
-if outfile: tray.Add("I3Writer", Filename=outfile, Streams=[icetray.I3Frame.Simulation, icetray.I3Frame.DAQ])
+if outfile: tray.Add("I3Writer", Filename=outfile, Streams=[icetray.I3Frame.TrayInfo, icetray.I3Frame.Simulation, icetray.I3Frame.DAQ])
 if outgcd: tray.Add("I3Writer", Filename=outgcd, Streams=[icetray.I3Frame.Geometry, icetray.I3Frame.Calibration, icetray.I3Frame.DetectorStatus])
 
 
