@@ -8,6 +8,7 @@ SOURCE_MAP=${3:-$GEOMETRY_DIR/sourcemap.txt}
 SELECTION_FILE=${4:-$GEOMETRY_DIR/70string_default.csv}
 GCD_FILE=${5:-/cvmfs/software.pacific-neutrino.org/geometries/PONE_800mGrid_40mSpacing_40OMstring.i3.gz}
 LOG_DIR="$SCRIPT_DIR/logs"
+FILES_PER_TASK=100
 
 if [[ ! -f "$SOURCE_MAP" ]]; then
     echo "Source map not found: $SOURCE_MAP" >&2
@@ -41,14 +42,15 @@ while IFS='|' read -r destination source; do
         exit 1
     fi
 
-    input_count=0
+    task_count=0
     while IFS= read -r -d '' input_dir; do
-        if find "$input_dir" -maxdepth 1 -type f \( -name '*.i3' -o -name '*.i3.gz' -o -name '*.i3.zst' \) -print -quit | grep -q .; then
-            input_count=$((input_count + 1))
+        file_count=$(find "$input_dir" -maxdepth 1 -type f \( -name '*.i3' -o -name '*.i3.gz' -o -name '*.i3.zst' \) -printf '.' | wc -c)
+        if [[ "$file_count" -gt 0 ]]; then
+            task_count=$((task_count + (file_count + FILES_PER_TASK - 1) / FILES_PER_TASK))
         fi
     done < <(find "$generator_dir" -mindepth 1 -type d -print0 | sort -z)
 
-    if [[ "$input_count" -eq 0 ]]; then
+    if [[ "$task_count" -eq 0 ]]; then
         echo "No input directories found in: $generator_dir" >&2
         continue
     fi
@@ -57,7 +59,7 @@ while IFS='|' read -r destination source; do
     mkdir -p "$output_dir"
     job_name="skim_$destination"
     sbatch \
-        --array="0-$((input_count - 1))" \
+        --array="0-$((task_count - 1))" \
         --job-name="$job_name" \
         --output="$LOG_DIR/${job_name}_%A_%a.log" \
         "$SCRIPT_DIR/sbatchController.sh" "$generator_dir" "$output_dir" \

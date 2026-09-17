@@ -7,9 +7,11 @@ LONGTERMSTORAGE=${3:-}
 SELECTION_FILE=${4:-}
 GCD_FILE=${5:-}
 BATCH_DIR=${6:-}
+FILE_GROUP=${7:-}
+FILES_PER_TASK=100
 
-if [[ -z "$INPUT_SUBDIR" || -z "$TMPDIR" || -z "$LONGTERMSTORAGE" || -z "$SELECTION_FILE" || -z "$GCD_FILE" || -z "$BATCH_DIR" ]]; then
-    echo "Usage: $0 <input_subdir> <tmpdir> <longtermstorage> <selection_file> <gcd_file> <skimmer_dir>" >&2
+if [[ -z "$INPUT_SUBDIR" || -z "$TMPDIR" || -z "$LONGTERMSTORAGE" || -z "$SELECTION_FILE" || -z "$GCD_FILE" || -z "$BATCH_DIR" || ! "$FILE_GROUP" =~ ^[0-9]+$ ]]; then
+    echo "Usage: $0 <input_subdir> <tmpdir> <longtermstorage> <selection_file> <gcd_file> <skimmer_dir> <zero-based-file-group>" >&2
     exit 2
 fi
 
@@ -41,9 +43,17 @@ if [[ ${#INPUT_FILES[@]} -eq 0 ]]; then
     exit 1
 fi
 
+file_offset=$((FILE_GROUP * FILES_PER_TASK))
+INPUT_FILES=("${INPUT_FILES[@]:file_offset:FILES_PER_TASK}")
+if [[ ${#INPUT_FILES[@]} -eq 0 ]]; then
+    echo "File group $FILE_GROUP is outside the input range for: $INPUT_SUBDIR" >&2
+    exit 1
+fi
+
 SUBDIR_NAME=$(basename "$INPUT_SUBDIR")
-OUTFILE_TMP="$TMPDIR/filt_${SUBDIR_NAME}.i3.zst"
-OUTFILE_FINAL="$LONGTERMSTORAGE/filt_${SUBDIR_NAME}.i3.zst"
+OUTPUT_GROUP=$((FILE_GROUP + 1))
+OUTFILE_TMP="$TMPDIR/filt_${SUBDIR_NAME}_${OUTPUT_GROUP}.i3.zst"
+OUTFILE_FINAL="$LONGTERMSTORAGE/filt_${SUBDIR_NAME}_${OUTPUT_GROUP}.i3.zst"
 
 mkdir -p "$LONGTERMSTORAGE"
 python3 "$BATCH_DIR/GeoSkimmer.py" -i "${INPUT_FILES[@]}" -o "$OUTFILE_TMP" -s "$SELECTION_FILE" -g "$GCD_FILE"
