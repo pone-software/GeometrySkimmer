@@ -6,7 +6,7 @@ GEOMETRY_DIR=${1:-$(cd "$SCRIPT_DIR/.." && pwd)}
 SIMULATION_ROOT=${2:-/project/6008051/pone_simulation}
 SOURCE_MAP=${3:-$GEOMETRY_DIR/sourcemap.txt}
 SELECTION_FILE=${4:-$GEOMETRY_DIR/70string_default.csv}
-GCD_FILE=${5:-$GEOMETRY_DIR/filteredGCD.i3.zst}
+GCD_FILE=${5:-/cvmfs/software.pacific-neutrino.org/geometries/PONE_800mGrid_40mSpacing_40OMstring.i3.gz}
 LOG_DIR="$SCRIPT_DIR/logs"
 
 if [[ ! -f "$SOURCE_MAP" ]]; then
@@ -20,7 +20,7 @@ if [[ ! -f "$SELECTION_FILE" ]]; then
 fi
 
 if [[ ! -f "$GCD_FILE" ]]; then
-    echo "Filtered GCD file not found: $GCD_FILE" >&2
+    echo "GCD file not found: $GCD_FILE" >&2
     exit 1
 fi
 
