@@ -3,17 +3,23 @@ set -euo pipefail
 
 INPUT_SUBDIR=${1:-}
 TMPDIR=${2:-}
-LONGTERMSTORAGE=${3:-/project/6008051/pone_simulation/geometry_subselections/LONGTERMSTORAGE}
-SELECTION_FILE=${4:-70string_default.csv}
-BATCH_DIR=${5:-}
+LONGTERMSTORAGE=${3:-}
+SELECTION_FILE=${4:-}
+GCD_FILE=${5:-}
+BATCH_DIR=${6:-}
 
-if [[ -z "$INPUT_SUBDIR" || -z "$TMPDIR" ]]; then
-    echo "Usage: $0 <input_subdir> <tmpdir> [longtermstorage] [selection_file]"
+if [[ -z "$INPUT_SUBDIR" || -z "$TMPDIR" || -z "$LONGTERMSTORAGE" || -z "$SELECTION_FILE" || -z "$GCD_FILE" || -z "$BATCH_DIR" ]]; then
+    echo "Usage: $0 <input_subdir> <tmpdir> <longtermstorage> <selection_file> <gcd_file> <skimmer_dir>" >&2
     exit 2
 fi
 
 if [[ ! -d "$INPUT_SUBDIR" ]]; then
     echo "Input subdirectory not found: $INPUT_SUBDIR"
+    exit 1
+fi
+
+if [[ ! -f "$SELECTION_FILE" || ! -f "$GCD_FILE" ]]; then
+    echo "Selection file or GCD file not found" >&2
     exit 1
 fi
 
@@ -39,7 +45,8 @@ SUBDIR_NAME=$(basename "$INPUT_SUBDIR")
 OUTFILE_TMP="$TMPDIR/filt_${SUBDIR_NAME}.i3.zst"
 OUTFILE_FINAL="$LONGTERMSTORAGE/filt_${SUBDIR_NAME}.i3.zst"
 
-python3 "$BATCH_DIR/GeoSkimmer.py" -i "${INPUT_FILES[@]}" -o "$OUTFILE_TMP" -s "$BATCH_DIR/$SELECTION_FILE"
+mkdir -p "$LONGTERMSTORAGE"
+python3 "$BATCH_DIR/GeoSkimmer.py" -i "${INPUT_FILES[@]}" -o "$OUTFILE_TMP" -s "$SELECTION_FILE" -g "$GCD_FILE"
 cp "$OUTFILE_TMP" "$OUTFILE_FINAL"
 
 echo "Wrote merged output: $OUTFILE_FINAL"

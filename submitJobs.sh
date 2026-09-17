@@ -1,42 +1,68 @@
 #!/bin/bash
 set -euo pipefail
 
-MCDIR=${1:-/project/rpp-nahee/pone_simulation/MC000008-nu_mu-2_6-LeptonInjector_PROPOSAL_clsim-v17.1}
-LONGTERMSTORAGE=${2:-/project/6008051/pone_simulation/geometry_subselections/2026_1400StringGeo/70Strings_7Clusters_10spc/000008}
-SELECTION_FILE=${3:-70string_default.csv}
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+GEOMETRY_DIR=${1:-$(cd "$SCRIPT_DIR/.." && pwd)}
+SIMULATION_ROOT=${2:-/project/6008051/pone_simulation}
+SOURCE_MAP=${3:-$GEOMETRY_DIR/sourcemap.txt}
+SELECTION_FILE=${4:-$GEOMETRY_DIR/70string_default.csv}
+GCD_FILE=${5:-$GEOMETRY_DIR/filteredGCD.i3.zst}
+LOG_DIR="$SCRIPT_DIR/logs"
 
-if [[ -z "$MCDIR" ]]; then
-    echo "Usage: $0 <MCDIR> [longtermstorage] [selection_file]"
-    exit 2
-fi
-echo "Running on $MCDIR"
-
-GEN_DIR="$MCDIR/Generator"
-if [[ ! -d "$GEN_DIR" ]]; then
-    echo "Generator directory not found: $GEN_DIR"
+if [[ ! -f "$SOURCE_MAP" ]]; then
+    echo "Source map not found: $SOURCE_MAP" >&2
     exit 1
 fi
-echo "Saving to $LONGTERMSTORAGE"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-LOG_DIR="$SCRIPT_DIR/logs"
+if [[ ! -f "$SELECTION_FILE" ]]; then
+    echo "Selection file not found: $SELECTION_FILE" >&2
+    exit 1
+fi
+
+if [[ ! -f "$GCD_FILE" ]]; then
+    echo "Filtered GCD file not found: $GCD_FILE" >&2
+    exit 1
+fi
+
 mkdir -p "$LOG_DIR"
-
 submitted=0
 
-# Submit one job per leaf directory that contains i3 files.
-while IFS= read -r -d '' dir; do
-    i3_count=$(find "$dir" -maxdepth 1 -type f \( -name '*.i3' -o -name '*.i3.gz' -o -name '*.i3.zst' \) | wc -l)
-    if [[ "$i3_count" -eq 0 ]]; then
+while IFS='|' read -r destination source; do
+    [[ -z "$destination" || "$destination" == \#* ]] && continue
+
+    if [[ -z "$source" || "$destination" == */* || "$source" == */* ]]; then
+        echo "Invalid source-map entry: $destination|$source" >&2
+        exit 1
+    fi
+
+    generator_dir="$SIMULATION_ROOT/$source/Generator"
+    if [[ ! -d "$generator_dir" ]]; then
+        echo "Generator directory not found: $generator_dir" >&2
+        exit 1
+    fi
+
+    input_count=0
+    while IFS= read -r -d '' input_dir; do
+        if find "$input_dir" -maxdepth 1 -type f \( -name '*.i3' -o -name '*.i3.gz' -o -name '*.i3.zst' \) -print -quit | grep -q .; then
+            input_count=$((input_count + 1))
+        fi
+    done < <(find "$generator_dir" -mindepth 1 -type d -print0 | sort -z)
+
+    if [[ "$input_count" -eq 0 ]]; then
+        echo "No input directories found in: $generator_dir" >&2
         continue
     fi
 
-    job_name="skim_$(basename "$dir")"
+    output_dir="$GEOMETRY_DIR/$destination"
+    mkdir -p "$output_dir"
+    job_name="skim_$destination"
     sbatch \
+        --array="0-$((input_count - 1))" \
         --job-name="$job_name" \
-        --output="$LOG_DIR/${job_name}_%j.log" \
-        "$SCRIPT_DIR/sbatchController.sh" "$dir" "$LONGTERMSTORAGE" "$SELECTION_FILE" "$SCRIPT_DIR"
+        --output="$LOG_DIR/${job_name}_%A_%a.log" \
+        "$SCRIPT_DIR/sbatchController.sh" "$generator_dir" "$output_dir" \
+        "$SELECTION_FILE" "$GCD_FILE" "$SCRIPT_DIR"
     submitted=$((submitted + 1))
-done < <(find "$GEN_DIR" -mindepth 1 -type d -print0)
+done < "$SOURCE_MAP"
 
-echo "Submitted $submitted jobs from $GEN_DIR"
+echo "Submitted $submitted job arrays from $SOURCE_MAP"
