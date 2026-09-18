@@ -47,6 +47,20 @@ with open(options.selectionfile, 'r') as file:
 icetray.logging.log_info(f"selected strings: {allowed_strings}")
 icetray.logging.log_info(f"selected oms: {allowed_oms}")
 
+# DarkNoise/K40Noise otherwise load the full unfiltered gcd_file geometry and
+# generate noise for every OM in it, so tell them to drop everything outside our selection.
+all_strings = set()
+all_oms = set()
+with dataio.I3File(options.gcdfile, 'r') as gcd_probe:
+    for frame in gcd_probe:
+        if "I3ModuleGeoMap" in frame:
+            for modkey in frame["I3ModuleGeoMap"].keys():
+                all_strings.add(modkey.string)
+                all_oms.add(modkey.om)
+            break
+drop_strings = list(all_strings - set(allowed_strings))
+drop_oms = list(all_oms - set(allowed_oms))
+
 tray = icetray.I3Tray()
 
 infiles = []
@@ -66,7 +80,9 @@ tray.AddModule(DarkNoise,
                input_map      = 'Physics_MCPEMap',
                output_map     = 'Noise_Dark',
                random_service = randomService,
-               gcd_file       = options.gcdfile
+               gcd_file       = options.gcdfile,
+               drop_strings   = drop_strings,
+               drop_oms       = drop_oms
                )
 
 tray.AddModule(K40Noise,
@@ -74,7 +90,9 @@ tray.AddModule(K40Noise,
                input_map             = 'Physics_MCPEMap',
                output_map            = 'Noise_K40',
                random_service        = randomService,
-               gcd_file              = options.gcdfile
+               gcd_file              = options.gcdfile,
+               drop_strings          = drop_strings,
+               drop_oms              = drop_oms
                )
 
 tray.AddModule(DOMSimulation,
@@ -111,7 +129,6 @@ tray.AddModule(
 
 if outfile: tray.Add("I3Writer", Filename=outfile, Streams=[icetray.I3Frame.TrayInfo, icetray.I3Frame.Simulation, icetray.I3Frame.DAQ])
 if outgcd: tray.Add("I3Writer", Filename=outgcd, Streams=[icetray.I3Frame.Geometry, icetray.I3Frame.Calibration, icetray.I3Frame.DetectorStatus])
-
 
 tray.Execute()
 tray.Finish()
